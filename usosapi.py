@@ -16,6 +16,8 @@ import requests.exceptions
 import logging
 import time
 
+VERSION = '1.0.0'
+
 _REQUEST_TOKEN_SUFFIX = 'services/oauth/request_token'
 _AUTHORIZE_SUFFIX = 'services/oauth/authorize'
 _ACCESS_TOKEN_SUFFIX = 'services/oauth/access_token'
