@@ -80,6 +80,10 @@ class USOSAPIConnection():
     (check them with test_connection function), you may already use a subset
     of USOS API services that don't require a valid access key.
 
+    To prevent the 'self signed certificate in certificate chain' error
+    for development environments you can disable the certificate checking by 
+    passing verify_certificate=False to the constructor.
+
     To log in as a specific user you need to get an URL address with
     get_authorization_url and somehow display it to the user (this module
     doesn't provide any UI). On the web page, after accepting
@@ -89,7 +93,7 @@ class USOSAPIConnection():
     authorize_with_pin function, you will have an authorized_session.
     """
     def __init__(self, api_base_address: str, consumer_key: str,
-                 consumer_secret: str):
+                 consumer_secret: str, verify_certificate: bool = True):
         self.base_address = str(api_base_address)
         if not self.base_address:
             raise ValueError('Empty USOS API address.')
@@ -121,10 +125,11 @@ class USOSAPIConnection():
         _LOGGER.info('New connection to {} created with key: {} '
                      'and secret: {}.'.format(api_base_address,
                                               consumer_key, consumer_secret))
+        self.verify_certificate = verify_certificate
 
     def _generate_request_token(self):
         params = {'oauth_callback': 'oob', 'scopes': SCOPES}
-        token_tuple = self._service.get_request_token(params=params)
+        token_tuple = self._service.get_request_token(params=params, verify=self.verify_certificate)
         self._request_token, self._request_token_secret = token_tuple
         _LOGGER.info("New request token generated: {}".format(token_tuple[0]))
         return
@@ -160,7 +165,7 @@ class USOSAPIConnection():
         time_re = '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6}$'
         try:
             anonymous_session = self._service.get_session()
-            now = anonymous_session.get('services/apisrv/now')
+            now = anonymous_session.get('services/apisrv/now', verify=self.verify_certificate)
             now = now.json()
             return bool(re.match(time_re, now))
         except Exception as e:
@@ -176,7 +181,7 @@ class USOSAPIConnection():
         successful authorization.
         """
         self._generate_request_token()
-        url = self._service.get_authorize_url(self._request_token)
+        url = self._service.get_authorize_url(self._request_token, verify=self.verify_certificate)
         _LOGGER.info('New authorization URL generated: {}'.format(url))
         return url
 
@@ -263,7 +268,7 @@ class USOSAPIConnection():
             session = self._authorized_session
 
         start = time.time()
-        response = session.post(service, params=kwargs, data={})
+        response = session.post(service, params=kwargs, data={}, verify=self.verify_certificate)
         ex_time = time.time() - start
 
         if not response.ok:
@@ -310,7 +315,7 @@ class USOSAPIConnection():
         If current session is anonymous it will raise USOSAPIException.
         """
         try:
-            data = self.get('services/users/user')
+            data = self.get('services/users/user', self.verify_certificate)
             return data
         except USOSAPIException:
             raise USOSAPIException('Trying to get identity of an unauthorized'
